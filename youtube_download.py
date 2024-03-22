@@ -28,7 +28,7 @@ def get_channel_stats(youtube,cid):
 
 get_channel_stats(youtube,cid)
 
-
+#Get Video ids
 def get_video_ids(youtube, play_id):
 
     request = youtube.playlistItems().list(
@@ -65,36 +65,38 @@ def get_video_ids(youtube, play_id):
 
 video_ids = get_video_ids(youtube, play_id)
 
+# As we can only send in 50 request a time so split the size to chunks
+def chunk_list(lst, n):
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 
-#Details from videos
-def get_video_details(youtube, video_ids):
+extracted_data = []
 
-    video_stats = []
-
-    for i in range(0, len(video_ids), 50):
-        request = youtube.videos().list(
-        part='snippet,statistics',
-        id=','.join(video_ids[i:i + 50])
-        )
+# Iterate over chunks of IDs
+for id_chunk in chunk_list(video_ids, 50):
+    id_str = ','.join(id_chunk)
+    request = youtube.videos().list(
+        part="snippet,statistics",
+        id=id_str
+    )
     response = request.execute()
 
-    for video in response['items']:
-        stats = dict(Title=video['snippet']['title'],
-                     Publish_date=video['snippet']['publishedAt'],
-                     Descriptions=video['snippet']['description'],
-                     Tags=video['snippet'].get('tags', []),
-                     Views=video['statistics']['viewCount'],
-                     Likes=video['statistics']['likeCount'],
-                     No_ofComments=video['statistics']['commentCount'],
-                     )
-        video_stats.append(stats)
+    # Process the response
+    for item in response['items']:
+        video_data = {
+            'Title': item['snippet']['title'],
+            'Publish_date': item['snippet']['publishedAt'],
+            'Descriptions': item['snippet']['description'],
+            'Tags': item['snippet'].get('tags', []),
+            'Views': item['statistics']['viewCount'],
+            'Likes': item['statistics']['likeCount'],
+            'No_ofComments': item['statistics']['commentCount']}
+        extracted_data.append(video_data)
 
-    return video_stats
+for video_info in extracted_data:
+    print(video_info)
 
-
-video_details = get_video_details(youtube, video_ids)
-
-df = pd.DataFrame(video_details)
+df = pd.DataFrame(extracted_data)
 
 df.shape[0]
 
