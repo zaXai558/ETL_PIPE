@@ -1,33 +1,41 @@
 from googleapiclient.discovery import build
-from dotenv import load_dotenv
 import os
 import pandas as pd
 
+#Load API credentials from environment variables.
 def load_credentials():
-    """
-    Load API credentials from environment variables.
-    """
-    load_dotenv()
+
     api_key = os.getenv("api_key")
-    channel_id = os.getenv("channel_id")
-    playlist_id = os.getenv("playlist_id")
     
-    if not (api_key and channel_id and playlist_id):
-        raise ValueError("Please provide valid API credentials.")
+    if not api_key:
+        raise ValueError("Please provide a valid API key.")
 
-    return api_key, channel_id, playlist_id
+    return api_key
 
+#Load channel IDs and playlist IDs from environment variables.Not working??
+'''def load_channel_and_playlist_ids():
+
+    channel_ids = os.getenv("channel_ids")
+    playlist_ids = os.getenv("playlist_ids")
+    
+    if not channel_ids or not playlist_ids:
+        raise ValueError("Please provide valid channel IDs and playlist IDs.")
+    
+    channel_ids = channel_ids.split(',')
+    playlist_ids = playlist_ids.split(',')
+    
+    if len(channel_ids) != len(playlist_ids):
+        raise ValueError("Number of channel IDs must match number of playlist IDs.")
+    
+    return channel_ids, playlist_ids'''
+
+#YouTube API client.
 def build_youtube_client(api_key):
-    """
-    Build and return a YouTube API client.
-    """
     youtube = build('youtube', 'v3', developerKey=api_key)
     return youtube
 
 def get_channel_stats(youtube, cid):
-    """
-    Get statistics for a YouTube channel.
-    """
+
     request = youtube.channels().list(
         part='snippet, contentDetails, statistics',
         forUsername=cid
@@ -48,9 +56,7 @@ def get_channel_stats(youtube, cid):
     return data
 
 def get_video_ids(youtube, play_id):
-    """
-    Get video IDs from a playlist.
-    """
+
     video_ids = []
     request = youtube.playlistItems().list(
         part='contentDetails',
@@ -82,10 +88,9 @@ def get_video_ids(youtube, play_id):
 
     return video_ids
 
+#Fetch data for each video in the list of video IDs.
 def fetch_video_data(youtube, video_ids):
-    """
-    Fetch data for each video in the list of video IDs.
-    """
+
     extracted_data = []
     for id_chunk in chunk_list(video_ids, 50):
         id_str = ','.join(id_chunk)
@@ -112,36 +117,41 @@ def fetch_video_data(youtube, video_ids):
 
     return extracted_data
 
+#Split a list into chunks of size n because 50 response
 def chunk_list(lst, n):
-    """
-    Split a list into chunks of size n.
-    """
+
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
+#Store extracted data to a CSV file.
 def store_data_to_file(data, filename='youtube_data.csv'):
-    """
-    Store extracted data to a CSV file.
-    """
+
     df = pd.DataFrame(data)
     df.to_csv(filename, index=False)
     print("Data stored to", filename)
 
 def main():
     try:
-        api_key, channel_id, playlist_id = load_credentials()
+        api_key = load_credentials()
         youtube = build_youtube_client(api_key)
         
-        channel_stats = get_channel_stats(youtube, channel_id)
-        print("Channel Stats:", channel_stats)
+        # Define channel IDs and playlist IDs
+        channel_ids = ['id1', 'id2',...]
+        playlist_ids = ['id1', 'id2',...]
+        #channel_ids, playlist_ids = load_channel_and_playlist_ids()
         
-        video_ids = get_video_ids(youtube, playlist_id)
-        print("Total Videos Found:", len(video_ids))
-        
-        extracted_data = fetch_video_data(youtube, video_ids)
-        print("Total Videos Fetched:", len(extracted_data))
-        
-        store_data_to_file(extracted_data)
+        for channel_id, playlist_id in zip(channel_ids, playlist_ids):
+            channel_stats = get_channel_stats(youtube, channel_id)
+            print("Channel Stats:", channel_stats)
+            
+            video_ids = get_video_ids(youtube, playlist_id)
+            print("Total Videos Found for Playlist", playlist_id, ":", len(video_ids))
+            
+            extracted_data = fetch_video_data(youtube, video_ids)
+            print("Total Videos Fetched for Playlist", playlist_id, ":", len(extracted_data))
+            
+            #store data to a file for each channel and playlist
+            store_data_to_file(extracted_data, filename=f'{channel_id}_data.csv')
     
     except Exception as e:
         print("Error:", e)
