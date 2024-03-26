@@ -90,7 +90,7 @@ def fetch_video_data(youtube, video_ids):
     for id_chunk in chunk_list(video_ids, 50):
         id_str = ','.join(id_chunk)
         request = youtube.videos().list(
-            part="snippet,statistics",
+            part="snippet,statistics,contentDetails",
             id=id_str
         )
         response = request.execute()
@@ -106,7 +106,8 @@ def fetch_video_data(youtube, video_ids):
                 'Tags': item['snippet'].get('tags', []),
                 'Views': item['statistics'].get('viewCount', 0),
                 'Likes': item['statistics'].get('likeCount', 0),
-                'No_ofComments': item['statistics'].get('commentCount', 0)
+                'No_ofComments': item['statistics'].get('commentCount', 0),
+                'Duration': item['contentDetails']['duration']
             }
             extracted_data.append(video_data)
 
